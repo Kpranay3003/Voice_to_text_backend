@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SAP Order Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+<style>
+/* ── Reset & Base ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0a0c0f;
+  --bg2:       #111418;
+  --bg3:       #181d23;
+  --bg4:       #1f262f;
+  --border:    rgba(255,255,255,0.07);
+  --border2:   rgba(255,255,255,0.13);
+  --text:      #e8eaed;
+  --muted:     #6b7280;
+  --muted2:    #9ca3af;
+  --green:     #22c55e;
+  --green-dim: rgba(34,197,94,0.12);
+  --amber:     #f59e0b;
+  --amber-dim: rgba(245,158,11,0.12);
+  --red:       #ef4444;
+  --red-dim:   rgba(239,68,68,0.12);
+  --blue:      #3b82f6;
+  --blue-dim:  rgba(59,130,246,0.12);
+  --accent:    #22c55e;
+  --mono:      'DM Mono', monospace;
+  --sans:      'Syne', sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+
+/* ── Grid noise texture overlay ──────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Layout ───────────────────────────────────────────── */
+.app { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 0 24px 60px; }
+
+/* ── Top bar ──────────────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  width: 32px; height: 32px;
+  background: var(--green);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+}
+.logo-icon svg { width: 18px; height: 18px; }
+
+.logo-text {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
+.logo-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.conn-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border2);
+  background: var(--bg3);
+  color: var(--muted2);
+  display: flex; align-items: center; gap: 5px;
+  cursor: default;
+}
+.conn-badge .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--muted);
+  transition: background 0.3s;
+}
+.conn-badge.connected .dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.conn-badge.error .dot { background: var(--red); }
+
+.refresh-btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--muted2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.refresh-btn:hover { background: var(--bg3); color: var(--text); border-color: var(--green); }
+.refresh-btn.spinning { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Config bar ───────────────────────────────────────── */
+.config-bar {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.config-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  flex-shrink: 0;
+}
+.config-bar input {
+  flex: 1;
+  min-width: 200px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.config-bar input:focus { border-color: var(--green); }
+.connect-btn {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: none;
+  background: var(--green);
+  color: #000;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+.connect-btn:hover { opacity: 0.85; }
+
+/* ── KPI row ──────────────────────────────────────────── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.kpi-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.kpi-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--kpi-color, var(--border2));
+  transition: background 0.3s;
+}
+.kpi-card:nth-child(1) { --kpi-color: var(--blue); }
+.kpi-card:nth-child(2) { --kpi-color: var(--green); }
+.kpi-card:nth-child(3) { --kpi-color: var(--amber); }
+.kpi-card:nth-child(4) { --kpi-color: var(--red); }
+.kpi-card:nth-child(5) { --kpi-color: #a855f7; }
+
+.kpi-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 8px;
+}
+.kpi-val {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.kpi-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.kpi-loading { background: var(--bg3); border-radius: 4px; height: 28px; width: 60%; animation: pulse 1.4s ease infinite; }
+@keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:0.9} }
+
+/* ── Main grid ────────────────────────────────────────── */
+.main-grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+/* ── Voice panel ──────────────────────────────────────── */
+.voice-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  position: sticky;
+  top: 20px;
+}
+
+.vp-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.vp-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted2);
+}
+
+.voice-status {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border2);
+  color: var(--muted);
+  background: var(--bg3);
+}
+.voice-status.listening {
+  color: var(--green);
+  border-color: var(--green);
+  background: var(--green-dim);
+  animation: blink 1.2s ease infinite;
+}
+.voice-status.speaking {
+  color: var(--blue);
+  border-color: var(--blue);
+  background: var(--blue-dim);
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* Waveform visualiser */
+.waveform-wrap {
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.mic-ring {
+  position: relative;
+  width: 72px; height: 72px;
+  cursor: pointer;
+}
+.mic-ring-outer {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border2);
+  transition: border-color 0.3s, transform 0.3s;
+}
+.mic-ring.active .mic-ring-outer {
+  border-color: var(--green);
+  animation: ring-pulse 1.5s ease infinite;
+}
+@keyframes ring-pulse {
+  0%,100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+.mic-circle {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: var(--bg3);
+  border: 1.5px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, border-color 0.2s;
+}
+.mic-ring.active .mic-circle {
+  background: var(--green-dim);
+  border-color: var(--green);
+}
+.mic-ring svg { width: 28px; height: 28px; color: var(--muted2); transition: color 0.2s; }
+.mic-ring.active svg { color: var(--green); }
+
+/* Bars */
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 28px;
+}
+.bar {
+  width: 3px;
+  background: var(--border2);
+  border-radius: 2px;
+  height: 4px;
+  transition: height 0.1s;
+}
+.bars.active .bar {
+  background: var(--green);
+  animation: barwave 0.6s ease infinite;
+}
+.bars.active .bar:nth-child(2) { animation-delay:0.1s; }
+.bars.active .bar:nth-child(3) { animation-delay:0.2s; }
+.bars.active .bar:nth-child(4) { animation-delay:0.15s; }
+.bars.active .bar:nth-child(5) { animation-delay:0.05s; }
+.bars.active .bar:nth-child(6) { animation-delay:0.25s; }
+.bars.active .bar:nth-child(7) { animation-delay:0.18s; }
+@keyframes barwave { 0%,100%{height:4px} 50%{height:22px} }
+
+.transcript-chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted2);
+  text-align: center;
+  min-height: 16px;
+  padding: 0 8px;
+  line-height: 1.4;
+}
+.transcript-chip.filled { color: var(--text); }
+
+/* Text input */
+.vp-input-row {
+  display: flex;
+  gap: 6px;
+  padding: 0 16px 12px;
+}
+.vp-input {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.vp-input:focus { border-color: var(--green); }
+.vp-send {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--green);
+  background: var(--green-dim);
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.vp-send:hover { background: var(--green); color: #000; }
+
+/* Response */
+.vp-response {
+  margin: 0 16px 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--green);
+  border-radius: 0 6px 6px 0;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted2);
+  min-height: 60px;
+  font-family: var(--mono);
+}
+.vp-response.loaded { color: var(--text); }
+
+/* Speak btn */
+.vp-speak {
+  margin: 0 16px 16px;
+  width: calc(100% - 32px);
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--muted2);
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.vp-speak:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-dim); }
+.vp-speak.speaking { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+
+/* Quick commands */
+.qc-section {
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+}
+.qc-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 8px;
+}
+.qc-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.qc-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 9px;
+  border-radius: 4px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--muted2);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.qc-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+
+/* ── Right panel ──────────────────────────────────────── */
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Section cards */
+.sections-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.panel-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted2);
+}
+.sec-filter-row {
+  display: flex;
+  gap: 4px;
+}
+.sf-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.sf-btn.active, .sf-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+
+.sections-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sec-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+}
+.sec-card:hover { border-color: var(--border2); background: var(--bg3); }
+.sec-card.active { border-color: var(--green); }
+
+.sec-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+.sec-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+.sec-track {
+  height: 2px;
+  background: var(--bg4);
+  border-radius: 1px;
+  margin-bottom: 8px;
+}
+.sec-fill {
+  height: 2px;
+  border-radius: 1px;
+  background: var(--green);
+  transition: width 0.6s cubic-bezier(.34,1.56,.64,1);
+}
+.sec-fill.warn { background: var(--amber); }
+.sec-fill.bad  { background: var(--red); }
+
+.sec-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.sec-count { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.sec-pill {
+  font-family: var(--mono);
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+.pill-ok   { background: var(--green-dim); color: var(--green); }
+.pill-warn { background: var(--amber-dim); color: var(--amber); }
+.pill-err  { background: var(--red-dim);   color: var(--red); }
+
+/* ── Orders table panel ───────────────────────────────── */
+.orders-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.op-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.op-title-wrap { display: flex; align-items: center; gap: 10px; }
+.op-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted2); }
+.op-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--bg3);
+  color: var(--muted2);
+}
+
+.op-filters {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.op-filter-select {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+}
+.op-search {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  outline: none;
+  width: 140px;
+  transition: border-color 0.15s;
+}
+.op-search:focus { border-color: var(--green); }
+
+.op-close {
+  width: 26px; height: 26px;
+  border-radius: 5px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s;
+}
+.op-close:hover { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+
+.table-wrap { overflow-x: auto; max-height: 440px; overflow-y: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+thead { position: sticky; top: 0; z-index: 2; }
+th {
+  padding: 9px 14px;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.12s;
+}
+th:hover { color: var(--text); }
+th .sort-arrow { margin-left: 4px; opacity: 0.4; }
+th.sorted .sort-arrow { opacity: 1; color: var(--green); }
+
+td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--bg3); }
+
+.td-id { color: var(--muted2); font-size: 11px; }
+.td-on-time { color: var(--green); }
+.td-delayed  { color: var(--amber); }
+.td-failed   { color: var(--red); }
+.td-pending  { color: var(--blue); }
+
+.status-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.dot-green  { background: var(--green); }
+.dot-amber  { background: var(--amber); }
+.dot-red    { background: var(--red); }
+.dot-blue   { background: var(--blue); }
+
+.sla-ok   { color: var(--green); }
+.sla-bad  { color: var(--red); }
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+/* Loading skeleton rows */
+.skeleton-row td {
+  padding: 10px 14px;
+}
+.skel {
+  display: inline-block;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--bg4);
+  animation: pulse 1.4s ease infinite;
+}
+
+/* Pagination */
+.pagination {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.page-info {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+.page-btns { display: flex; gap: 4px; }
+.page-btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--muted2);
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.page-btn:hover:not(:disabled) { border-color: var(--green); color: var(--green); }
+.page-btn:disabled { opacity: 0.3; cursor: default; }
+.page-btn.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+/* ── Toast ────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  z-index: 9999;
+  transform: translateY(20px);
+  opacity: 0;
+  transition: all 0.25s;
+  max-width: 320px;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.toast-err { border-color: var(--red); color: var(--red); }
+.toast.toast-ok  { border-color: var(--green); color: var(--green); }
+
+/* ── Responsive ───────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .main-grid { grid-template-columns: 1fr; }
+  .voice-panel { position: static; }
+  .kpi-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .app { padding: 0 12px 40px; }
+  .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sections-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
+      <div>
+        <div class="logo-text">SAP Order Tracker</div>
+        <div class="logo-sub">9-Section Lifecycle Monitor</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="conn-badge" id="connBadge"><span class="dot"></span><span id="connText">Disconnected</span></div>
+      <button class="refresh-btn" id="refreshBtn" onclick="loadAll()">⟳ Refresh</button>
+    </div>
+  </div>
+
+  <!-- Backend URL config -->
+  <div class="config-bar">
+    <span class="config-label">Backend URL</span>
+    <input type="text" id="backendUrl" value="http://localhost:3000/api" placeholder="http://localhost:3000/api"/>
+    <button class="connect-btn" onclick="connect()">Connect</button>
+  </div>
+
+  <!-- KPI row -->
+  <div class="kpi-row">
+    <div class="kpi-card"><div class="kpi-label">Total Orders</div><div class="kpi-val" id="kTotal"><div class="kpi-loading"></div></div><div class="kpi-sub" id="kTotalSub">–</div></div>
+    <div class="kpi-card"><div class="kpi-label">On Time</div><div class="kpi-val" id="kOnTime"><div class="kpi-loading"></div></div><div class="kpi-sub" id="kOnTimeSub">–</div></div>
+    <div class="kpi-card"><div class="kpi-label">Delayed</div><div class="kpi-val" id="kDelayed"><div class="kpi-loading"></div></div><div class="kpi-sub" id="kDelayedSub">–</div></div>
+    <div class="kpi-card"><div class="kpi-label">Failed</div><div class="kpi-val" id="kFailed"><div class="kpi-loading"></div></div><div class="kpi-sub" id="kFailedSub">–</div></div>
+    <div class="kpi-card"><div class="kpi-label">SLA Breached</div><div class="kpi-val" id="kSLA"><div class="kpi-loading"></div></div><div class="kpi-sub" id="kSLASub">–</div></div>
+  </div>
+
+  <!-- Main grid -->
+  <div class="main-grid">
+
+    <!-- Voice panel -->
+    <div class="voice-panel">
+      <div class="vp-header">
+        <span class="vp-title">Voice Assistant</span>
+        <span class="voice-status" id="voiceStatus">Idle</span>
+      </div>
+
+      <div class="waveform-wrap">
+        <div class="mic-ring" id="micRing" onclick="toggleMic()">
+          <div class="mic-ring-outer"></div>
+          <div class="mic-circle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="9" y="2" width="6" height="12" rx="3"/>
+              <path d="M5 10a7 7 0 0014 0"/>
+              <line x1="12" y1="20" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </div>
+        </div>
+        <div class="bars" id="bars">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+          <div class="bar"></div>
+        </div>
+        <div class="transcript-chip" id="transcriptChip">Click mic to speak your query</div>
+      </div>
+
+      <div class="vp-input-row">
+        <input class="vp-input" id="vpInput" type="text" placeholder="Or type your query here…" onkeydown="if(event.key==='Enter')sendText()"/>
+        <button class="vp-send" onclick="sendText()">→</button>
+      </div>
+
+      <div class="vp-response" id="vpResponse">Ask about orders, sections, delays, SLA status, or a specific order ID. Results appear below and are read aloud.</div>
+
+      <button class="vp-speak" id="speakBtn" onclick="toggleSpeak()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0013 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+        Read aloud
+      </button>
+
+      <div class="qc-section">
+        <div class="qc-label">Quick queries</div>
+        <div class="qc-grid">
+          <button class="qc-btn" onclick="runVoice('Summary of all sections')">Summary</button>
+          <button class="qc-btn" onclick="runVoice('Show delayed orders')">Delayed</button>
+          <button class="qc-btn" onclick="runVoice('Show failed orders')">Failed</button>
+          <button class="qc-btn" onclick="runVoice('Pending orders')">Pending</button>
+          <button class="qc-btn" onclick="runVoice('SLA breached orders')">SLA breach</button>
+          <button class="qc-btn" onclick="runVoice('Invoice generation status')">Invoice</button>
+          <button class="qc-btn" onclick="runVoice('Warehouse post goods issue')">WH PGI</button>
+          <button class="qc-btn" onclick="runVoice('Critical orders today')">Critical</button>
+          <button class="qc-btn" onclick="runVoice('SAP sales order creation')">Sales Order</button>
+          <button class="qc-btn" onclick="runVoice('OCH order entry status')">OCH Entry</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right panel -->
+    <div class="right-panel">
+
+      <!-- Section cards -->
+      <div>
+        <div class="sections-header">
+          <span class="panel-title">9 Lifecycle Sections</span>
+          <div class="sec-filter-row">
+            <button class="sf-btn active" id="sfAll" onclick="setSFilter('all')">All</button>
+            <button class="sf-btn" id="sfDelayed" onclick="setSFilter('delayed')">Delayed</button>
+            <button class="sf-btn" id="sfFailed"  onclick="setSFilter('failed')">Failed</button>
+          </div>
+        </div>
+        <div class="sections-grid" id="sectionsGrid">
+          <!-- populated by JS -->
+        </div>
+      </div>
+
+      <!-- Orders table -->
+      <div class="orders-panel" id="ordersPanel">
+        <div class="op-header">
+          <div class="op-title-wrap">
+            <span class="op-title" id="opTitle">All Orders</span>
+            <span class="op-count" id="opCount">–</span>
+          </div>
+          <div class="op-filters">
+            <select class="op-filter-select" id="filterStatus" onchange="applyTableFilter()">
+              <option value="">All statuses</option>
+              <option value="On Time">On Time</option>
+              <option value="Delayed">Delayed</option>
+              <option value="Failed">Failed</option>
+              <option value="Pending">Pending</option>
+            </select>
+            <select class="op-filter-select" id="filterSection" onchange="applyTableFilter()">
+              <option value="">All sections</option>
+            </select>
+            <input class="op-search" id="searchInput" type="text" placeholder="Search order ID…" oninput="applyTableFilter()"/>
+            <button class="op-close" onclick="clearTable()" title="Clear">✕</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th onclick="sortTable('orderId')">Order ID <span class="sort-arrow">↕</span></th>
+                <th onclick="sortTable('sectionShort')">Section <span class="sort-arrow">↕</span></th>
+                <th onclick="sortTable('status')">Status <span class="sort-arrow">↕</span></th>
+                <th onclick="sortTable('startTime')">Start Time <span class="sort-arrow">↕</span></th>
+                <th onclick="sortTable('endTime')">End Time <span class="sort-arrow">↕</span></th>
+                <th onclick="sortTable('runtimeMin')">Runtime <span class="sort-arrow">↕</span></th>
+                <th onclick="sortTable('slaStatus')">SLA <span class="sort-arrow">↕</span></th>
+                <th>Application</th>
+                <th>Created By</th>
+                <th>Plant</th>
+              </tr>
+            </thead>
+            <tbody id="ordersBody">
+              <!-- skeleton -->
+              <tr class="skeleton-row"><td><div class="skel" style="width:70px"></div></td><td><div class="skel" style="width:90px"></div></td><td><div class="skel" style="width:60px"></div></td><td><div class="skel" style="width:120px"></div></td><td><div class="skel" style="width:120px"></div></td><td><div class="skel" style="width:50px"></div></td><td><div class="skel" style="width:70px"></div></td><td><div class="skel" style="width:80px"></div></td><td><div class="skel" style="width:60px"></div></td><td><div class="skel" style="width:40px"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <span class="page-info" id="pageInfo">–</span>
+          <div class="page-btns" id="pageBtns"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Config ─────────────────────────────────────────────
+let API_BASE = 'http://localhost:3000/api';
+let allOrders = [];
+let filteredOrders = [];
+let currentPage = 1;
+const PAGE_SIZE = 20;
+let sortCol = 'startTime';
+let sortDir = 'desc';
+let sectionFilter = 'all';
+let currentResponseText = '';
+let isSpeaking = false;
+let recognition = null;
+let isListening = false;
+
+// ── Connect ────────────────────────────────────────────
+function connect() {
+  API_BASE = document.getElementById('backendUrl').value.replace(/\/$/, '');
+  loadAll();
+}
+
+async function loadAll() {
+  setConnStatus('connecting');
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  try {
+    await Promise.all([loadSummary(), loadOrders()]);
+    setConnStatus('connected');
+    toast('Data loaded successfully', 'ok');
+  } catch(e) {
+    setConnStatus('error');
+    toast('Cannot reach backend — check URL and that server is running', 'err');
+  }
+  btn.classList.remove('spinning');
+}
+
+function setConnStatus(s) {
+  const b = document.getElementById('connBadge');
+  const t = document.getElementById('connText');
+  b.className = 'conn-badge ' + (s === 'connected' ? 'connected' : s === 'error' ? 'error' : '');
+  t.textContent = s === 'connected' ? 'Connected' : s === 'error' ? 'Error' : 'Connecting…';
+}
+
+// ── Summary / KPIs ─────────────────────────────────────
+async function loadSummary() {
+  const res = await fetch(`${API_BASE}/summary`);
+  if (!res.ok) throw new Error(res.status);
+  const d = await res.json();
+
+  set('kTotal',      d.total);
+  set('kTotalSub',   '9 sections active');
+  set('kOnTime',     d.onTime);
+  set('kOnTimeSub',  `${d.onTimeRate}% on-time rate`);
+  set('kDelayed',    d.delayed);
+  set('kDelayedSub', 'require attention');
+  set('kFailed',     d.failed);
+  set('kFailedSub',  'transaction errors');
+  set('kSLA',        d.slaBreached);
+  set('kSLASub',     'threshold exceeded');
+
+  renderSections(d.sections);
+}
+
+function renderSections(sections) {
+  const grid = document.getElementById('sectionsGrid');
+  // Populate filter dropdown
+  const sel = document.getElementById('filterSection');
+  sel.innerHTML = '<option value="">All sections</option>' +
+    sections.map(s => `<option value="${s.sectionId}">S${s.sectionId}: ${s.sectionShort}</option>`).join('');
+
+  grid.innerHTML = sections.map(s => {
+    const pct = s.total ? Math.round(s.onTime / s.total * 100) : 0;
+    const hide = (sectionFilter === 'delayed' && !s.delayed) ||
+                 (sectionFilter === 'failed'  && !s.failed);
+    const fillClass = pct >= 80 ? '' : pct >= 50 ? 'warn' : 'bad';
+    const pill = s.failed  ? `<span class="sec-pill pill-err">${s.failed} failed</span>` :
+                 s.delayed ? `<span class="sec-pill pill-warn">${s.delayed} delayed</span>` :
+                             `<span class="sec-pill pill-ok">OK</span>`;
+    return `<div class="sec-card${hide?' style="display:none"':''}" id="sc-${s.sectionId}" onclick="drillSection(${s.sectionId})">
+      <div class="sec-num">Section ${s.sectionId}</div>
+      <div class="sec-name">${s.sectionShort}</div>
+      <div class="sec-track"><div class="sec-fill ${fillClass}" style="width:${pct}%"></div></div>
+      <div class="sec-bottom">
+        <span class="sec-count">${s.onTime}/${s.total}</span>
+        ${pill}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setSFilter(f) {
+  sectionFilter = f;
+  ['sfAll','sfDelayed','sfFailed'].forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById('sf'+f.charAt(0).toUpperCase()+f.slice(1)).classList.add('active');
+  document.querySelectorAll('.sec-card').forEach(c => {
+    const id = parseInt(c.id.replace('sc-',''));
+    // re-filter based on live data — just reload summary to re-render
+    loadSummary();
+  });
+}
+
+// ── Orders ─────────────────────────────────────────────
+async function loadOrders(filters = {}) {
+  const params = new URLSearchParams({ size: 500, ...filters });
+  const res = await fetch(`${API_BASE}/orders?${params}`);
+  if (!res.ok) throw new Error(res.status);
+  const d = await res.json();
+  allOrders = d.items || [];
+  filteredOrders = [...allOrders];
+  currentPage = 1;
+  renderTable();
+}
+
+function applyTableFilter() {
+  const status  = document.getElementById('filterStatus').value;
+  const secId   = document.getElementById('filterSection').value;
+  const search  = document.getElementById('searchInput').value.toLowerCase();
+
+  filteredOrders = allOrders.filter(o => {
+    if (status && o.status !== status) return false;
+    if (secId  && o.sectionId !== parseInt(secId)) return false;
+    if (search && !o.orderId.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  // re-sort
+  sortRows();
+  currentPage = 1;
+  renderTable();
+}
+
+function sortTable(col) {
+  if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  else { sortCol = col; sortDir = 'asc'; }
+  document.querySelectorAll('th').forEach(th => th.classList.remove('sorted'));
+  sortRows();
+  renderTable();
+}
+
+function sortRows() {
+  filteredOrders.sort((a, b) => {
+    let va = a[sortCol], vb = b[sortCol];
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    if (typeof va === 'string') va = va.toLowerCase();
+    if (typeof vb === 'string') vb = vb.toLowerCase();
+    return sortDir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+  });
+}
+
+function renderTable(title) {
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page  = filteredOrders.slice(start, start + PAGE_SIZE);
+  const total = filteredOrders.length;
+
+  if (title) { document.getElementById('opTitle').textContent = title; }
+  document.getElementById('opCount').textContent = `${total} orders`;
+  document.getElementById('pageInfo').textContent =
+    `${Math.min(start+1, total)}–${Math.min(start+PAGE_SIZE, total)} of ${total}`;
+
+  const body = document.getElementById('ordersBody');
+
+  if (!page.length) {
+    body.innerHTML = `<tr><td colspan="10" class="empty-state">No orders match current filters</td></tr>`;
+    renderPagination(total);
+    return;
+  }
+
+  body.innerHTML = page.map(o => {
+    const statusClass = o.status === 'On Time' ? 'td-on-time' :
+                        o.status === 'Delayed'  ? 'td-delayed'  :
+                        o.status === 'Failed'   ? 'td-failed'   : 'td-pending';
+    const dotClass    = o.status === 'On Time' ? 'dot-green' :
+                        o.status === 'Delayed'  ? 'dot-amber'  :
+                        o.status === 'Failed'   ? 'dot-red'    : 'dot-blue';
+    return `<tr>
+      <td class="td-id">${o.orderId}</td>
+      <td style="color:var(--muted2)">${o.sectionShort ?? `S${o.sectionId}`}</td>
+      <td class="${statusClass}"><span class="status-dot ${dotClass}"></span>${o.status}</td>
+      <td>${fmtDate(o.startTime)}</td>
+      <td>${o.endTime ? fmtDate(o.endTime) : '<span style="color:var(--blue)">Running</span>'}</td>
+      <td>${o.runtimeStr ?? '–'}</td>
+      <td class="${o.slaStatus === 'Breached' ? 'sla-bad' : 'sla-ok'}">${o.slaStatus ?? '–'}</td>
+      <td style="color:var(--muted2)">${o.application ?? '–'}</td>
+      <td style="color:var(--muted2)">${o.createdBy ?? '–'}</td>
+      <td style="color:var(--muted2)">${o.plant ?? '–'}</td>
+    </tr>`;
+  }).join('');
+
+  renderPagination(total);
+}
+
+function renderPagination(total) {
+  const pages = Math.ceil(total / PAGE_SIZE);
+  const btns  = document.getElementById('pageBtns');
+  if (pages <= 1) { btns.innerHTML = ''; return; }
+
+  let html = `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>←</button>`;
+  for (let p = 1; p <= Math.min(pages, 7); p++) {
+    html += `<button class="page-btn ${p===currentPage?'active':''}" onclick="goPage(${p})">${p}</button>`;
+  }
+  if (pages > 7) html += `<span style="color:var(--muted);font-family:var(--mono);font-size:11px;padding:0 4px">…${pages}</span>`;
+  html += `<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===pages?'disabled':''}>→</button>`;
+  btns.innerHTML = html;
+}
+
+function goPage(p) {
+  const pages = Math.ceil(filteredOrders.length / PAGE_SIZE);
+  if (p < 1 || p > pages) return;
+  currentPage = p;
+  renderTable();
+}
+
+function drillSection(id) {
+  document.querySelectorAll('.sec-card').forEach(c => c.classList.remove('active'));
+  document.getElementById(`sc-${id}`)?.classList.add('active');
+  document.getElementById('filterSection').value = id;
+  applyTableFilter();
+  document.getElementById('ordersPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function clearTable() {
+  document.getElementById('filterStatus').value  = '';
+  document.getElementById('filterSection').value = '';
+  document.getElementById('searchInput').value   = '';
+  document.querySelectorAll('.sec-card').forEach(c => c.classList.remove('active'));
+  filteredOrders = [...allOrders];
+  currentPage = 1;
+  renderTable('All Orders');
+}
+
+// ── Voice query ────────────────────────────────────────
+async function runVoice(query) {
+  document.getElementById('transcriptChip').textContent = query;
+  document.getElementById('transcriptChip').classList.add('filled');
+  document.getElementById('vpResponse').textContent = 'Thinking…';
+  document.getElementById('vpResponse').classList.remove('loaded');
+
+  try {
+    const res = await fetch(`${API_BASE}/voice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+    });
+    if (!res.ok) throw new Error(res.status);
+    const d = await res.json();
+
+    currentResponseText = d.responseText;
+    document.getElementById('vpResponse').textContent = d.responseText;
+    document.getElementById('vpResponse').classList.add('loaded');
+
+    // Show orders in table
+    if (d.orders && d.orders.length) {
+      allOrders = d.orders;
+      filteredOrders = [...allOrders];
+      currentPage = 1;
+      sortRows();
+      renderTable(`Query: "${query}"`);
+    }
+
+    // Auto-speak
+    speakText(d.responseText);
+
+  } catch(e) {
+    document.getElementById('vpResponse').textContent = 'Could not reach backend. Make sure the server is running.';
+    toast('Backend unreachable', 'err');
+  }
+}
+
+function sendText() {
+  const v = document.getElementById('vpInput').value.trim();
+  if (!v) return;
+  document.getElementById('vpInput').value = '';
+  runVoice(v);
+}
+
+// ── Speech recognition ─────────────────────────────────
+function toggleMic() {
+  if (isListening) { stopListening(); return; }
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    toast('Speech recognition not supported — use Chrome or Edge', 'err'); return;
+  }
+  startListening();
+}
+
+function startListening() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+
+  recognition.onstart = () => {
+    isListening = true;
+    document.getElementById('micRing').classList.add('active');
+    document.getElementById('bars').classList.add('active');
+    setVoiceStatus('listening', 'Listening…');
+  };
+  recognition.onresult = e => {
+    let t = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) t += e.results[i][0].transcript;
+    document.getElementById('transcriptChip').textContent = t;
+    document.getElementById('transcriptChip').classList.add('filled');
+    if (e.results[e.results.length-1].isFinal) { stopListening(); runVoice(t); }
+  };
+  recognition.onerror = recognition.onend = stopListening;
+  recognition.start();
+}
+
+function stopListening() {
+  isListening = false;
+  try { recognition?.stop(); } catch(e) {}
+  document.getElementById('micRing').classList.remove('active');
+  document.getElementById('bars').classList.remove('active');
+  setVoiceStatus('idle', 'Idle');
+}
+
+function setVoiceStatus(state, label) {
+  const el = document.getElementById('voiceStatus');
+  el.className = 'voice-status' + (state === 'listening' ? ' listening' : state === 'speaking' ? ' speaking' : '');
+  el.textContent = label;
+}
+
+// ── TTS ────────────────────────────────────────────────
+function speakText(text) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.95; utter.pitch = 1; utter.volume = 1;
+  const voices = window.speechSynthesis.getVoices();
+  const pref = voices.find(v => v.lang === 'en-US' && v.name.includes('Google')) ||
+               voices.find(v => v.lang === 'en-US') || voices[0];
+  if (pref) utter.voice = pref;
+  utter.onstart = () => {
+    isSpeaking = true;
+    setVoiceStatus('speaking', 'Speaking');
+    document.getElementById('speakBtn').classList.add('speaking');
+    document.getElementById('speakBtn').innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg> Stop`;
+  };
+  utter.onend = utter.onerror = resetSpeakBtn;
+  window.speechSynthesis.speak(utter);
+}
+
+function toggleSpeak() {
+  if (isSpeaking) { window.speechSynthesis.cancel(); resetSpeakBtn(); }
+  else if (currentResponseText) speakText(currentResponseText);
+}
+
+function resetSpeakBtn() {
+  isSpeaking = false;
+  setVoiceStatus('idle', 'Idle');
+  document.getElementById('speakBtn').classList.remove('speaking');
+  document.getElementById('speakBtn').innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0013 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg> Read aloud`;
+}
+
+// ── Helpers ────────────────────────────────────────────
+function set(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function fmtDate(d) {
+  if (!d) return '–';
+  return new Date(d).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+}
+
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' toast-' + type : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// Init
+window.speechSynthesis?.getVoices();
+loadAll();
+
+// Auto-refresh every 30s
+setInterval(loadAll, 30000);
+</script>
+</body>
+</html>
