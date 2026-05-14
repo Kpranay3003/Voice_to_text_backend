@@ -1,12 +1,12 @@
 /**
- * FloatingAssistant.jsx  (CommonJS-compatible React)
+ * FloatingAssistant.jsx
  * Bottom-right floating widget:
  *   🤖 Chat  — AI chatbot via Anthropic (calls /api/chat on backend)
  *   🎤 Voice — STT + TTS, auto-opens nodes, reads live data
  */
-const { useState, useEffect, useRef, useCallback } = require("react");
-require("./FloatingAssistant.css");
-const { getSummary } = require("../services/api");
+import { useState, useEffect, useRef, useCallback } from "react";
+import "./FloatingAssistant.css";
+import { getSummary } from "../services/api";
 
 const BACKEND = "http://localhost:5000";
 
@@ -47,7 +47,7 @@ function RenderText({ text }) {
 /* ═══════════════════════════════════════════════════════════
    COMPONENT
 ═══════════════════════════════════════════════════════════ */
-function FloatingAssistant({
+export default function FloatingAssistant({
   nodesConfig, summaryMap, selectedNode, currentSummary, onNodeSelect,
 }) {
   const [open,         setOpen]         = useState(false);
@@ -360,5 +360,3 @@ If asked to open or navigate to a node, include OPEN_NODE:<node_id> in your resp
     </div>
   );
 }
-
-module.exports = FloatingAssistant;
