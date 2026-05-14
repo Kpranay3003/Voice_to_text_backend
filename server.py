@@ -138,9 +138,6 @@ async def chat(req: ChatRequest):
             {"role": m.role, "content": m.content}
             for m in req.messages
         ],
-
-
-        
     }
 
     # Call Anthropic API securely from backend
